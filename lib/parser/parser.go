@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"gosh/lib/builtins"
+	"gosh/lib/history"
 	"os"
 	"os/exec"
 	"strings"
@@ -21,10 +23,14 @@ func GoshParseLine(text string) []string {
 // 	commands [][]string => the command(s) to exe    arr := make([]string, 0)cute.
 // Returns:
 // 	history.GoshCommand => A struct containing the result code and original text.
-func GoshExecCommand(text string) ([]string, error) {
+func GoshExecCommand(text string, h history.GoshHistory) history.GoshCommand {
 	// Remove the newline character.
 	commandText := strings.TrimSuffix(text, "\n")
 	args := strings.Split(commandText, " ")
+
+	if builtins.CheckForBuiltin(commandText, h) == true {
+		return history.NewCommand(text, 0)
+	}
 
 	// Prepare the command to execute.
 	cmd := exec.Command(args[0], args[1:]...)
@@ -34,5 +40,19 @@ func GoshExecCommand(text string) ([]string, error) {
 	cmd.Stdout = os.Stdout
 
 	// Execute the command and return the error.
-	return args, cmd.Run()
+	err := cmd.Run()
+
+	if err != nil {
+		return history.NewCommand(text, -1)
+	}
+
+	return history.NewCommand(text, 0)
 }
+
+// TODO: Runs a command through a channel in order to provide an "async" feel.
+// func GoshExecAsync(in <-chan string, out chan<- history.GoshCommand) {
+// 	// Get command string from channel.
+// 	commandString := <-in
+// 	result := GoshExecCommand(commandString)
+// 	out <- result
+// }

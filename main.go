@@ -3,19 +3,18 @@ package main
 import (
 	"bufio"
 	"fmt"
-	// "gosh/lib/history"
+	"gosh/lib/history"
 	"gosh/lib/parser"
 	"os"
+	"time"
 )
 
 func main() {
 	fmt.Println("Welcome to gosh!")
-	// This should probably be some History struct
-	// commandHistory := history.NewHistory()
 	reader := bufio.NewReader(os.Stdin)
+	commandHistory := history.FromFile()
 
 	for {
-
 		fmt.Printf("> ")
 		text, err := reader.ReadString('\n')
 
@@ -23,9 +22,15 @@ func main() {
 			panic("Oh no")
 		}
 
-		if args, err := parser.GoshExecCommand(text); err != nil {
-			fmt.Printf("%s not found!\n", args[0])
-		}
+		command := parser.GoshExecCommand(text, commandHistory)
 
+		fmt.Println(command)
 	}
+}
+
+// A utility function used for checking if a command is going to slow down a user's "flow".
+// Could be enabled by some sort of flag.
+func callTimesOut(in <-chan interface{}, out chan<- interface{}) {
+	time.Sleep(2 * time.Second)
+	out <- 1
 }
