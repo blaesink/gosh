@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"gosh/lib/history"
 	"os"
 	"os/exec"
 	"strings"
@@ -21,7 +22,9 @@ func GoshParseLine(text string) []string {
 // 	commands [][]string => the command(s) to exe    arr := make([]string, 0)cute.
 // Returns:
 // 	history.GoshCommand => A struct containing the result code and original text.
-func GoshExecCommand(text string) ([]string, error) {
+func GoshExecCommand(text string) (history.GoshCommand, error) {
+	var errCode int
+
 	// Remove the newline character.
 	commandText := strings.TrimSuffix(text, "\n")
 	args := strings.Split(commandText, " ")
@@ -33,6 +36,12 @@ func GoshExecCommand(text string) ([]string, error) {
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 
-	// Execute the command and return the error.
-	return args, cmd.Run()
+	err := cmd.Run()
+
+	if err != nil {
+		errCode = -1
+	}
+
+	gCmd := history.NewCommand(commandText, errCode)
+	return gCmd, err
 }
