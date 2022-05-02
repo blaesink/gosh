@@ -59,7 +59,6 @@ func (g *GoshHistory) AddToHistory(c GoshCommand) (uint32, error) {
 
 // Cleans all commands with a non-zero hsult.
 // This keeps the user from entering bad commands.
-// NOTE: this is technically reslicing, and can be very slow as size increases.
 func (g *GoshHistory) Clean() {
 	for h, cmd := range g.Commands {
 		if cmd.Result != 0 {
