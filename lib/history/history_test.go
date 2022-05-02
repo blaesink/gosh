@@ -2,10 +2,20 @@ package history
 
 import (
 	"bytes"
+	"fmt"
+	"os"
 	"testing"
 )
 
 var _ = bytes.Compare
+var currPath string
+
+func init() {
+	currPath, _ = os.Getwd()
+	goshHistoryLocation = currPath + "/dummyHistory.json"
+
+	fmt.Println(goshHistoryLocation)
+}
 
 func mockHistory() *GoshHistory {
 	h := NewHistory()
@@ -24,12 +34,56 @@ func TestNewHistory(t *testing.T) {
 	}
 }
 
-func TestAddToHistory(t *testing.T) {
+func TestRetrieveCommand(t *testing.T) {
 	h := mockHistory()
-	h.AddToHistory(mockCommand())
+	id, err := h.AddToHistory(mockCommand())
 
-	if !isEqual(h.Size(), 1) {
-		t.Fatalf("Have command length of %d, want 1", len(h.Commands))
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	cmd, ok := h.RetrieveCommand(id)
+
+	if !ok {
+		t.Fatalf("Command %s does not exist", cmd.Command)
+	}
+}
+
+func TestAddToHistory(t *testing.T) {
+	type historyTest struct {
+		commands   []GoshCommand
+		wantedSize uint
+	}
+
+	tests := []historyTest{
+		{[]GoshCommand{{"ls", 0, 1}, {"ps", 0, 1}}, 2}}
+
+	for _, tt := range tests {
+		h := mockHistory()
+		for _, cmd := range tt.commands {
+			h.AddToHistory(cmd)
+		}
+
+		if !isEqual(h.Size(), tt.wantedSize) {
+			t.Fatalf("Have size %d, want size %d", h.Size(), tt.wantedSize)
+		}
+	}
+}
+
+func TestAddDuplicateCommand(t *testing.T) {
+	h := NewHistory()
+	h.AddToHistory(mockCommand())
+	id, err := h.AddToHistory(mockCommand())
+
+	expectedInvocations := 2
+
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	if inv := h.Commands[id].Invocations; inv != uint(expectedInvocations) {
+		t.Fatalf("Have %d invocation(s) for command %s, want %d invocations",
+			inv, mockCommand().Command, expectedInvocations)
 	}
 }
 
@@ -41,7 +95,8 @@ func TestCleanHistory(t *testing.T) {
 	}
 
 	tests := []testHistoryStruct{
-		{mockMap([]GoshCommand{{"ls", 0, 1}}), 1}}
+		{mockMap([]GoshCommand{{"ls", 0, 1}}), 1},
+		{mockMap([]GoshCommand{{"ls", 0, 1}, {"ks", -1, 1}}), 1}}
 
 	for _, tt := range tests {
 		h := mockHistory()
@@ -69,6 +124,27 @@ func TestToJSON(t *testing.T) {
 	// if bytes.Compare(js, expected) != 0 {
 	// 	t.Fatalf("Have %v, want %v", js, expected)
 	// }
+}
+
+func TestFromConfigFile(t *testing.T) {
+	h, err := FromConfigFile()
+
+	if !isNil(err) {
+		t.Fatalf("Could not read config file from %s", goshHistoryLocation)
+	}
+
+	if h.Commands == nil {
+		t.Fatalf("Have nil map for GoshHistory from file %s", goshHistoryLocation)
+	}
+
+	// Look for specific command.
+	if cmd, ok := h.Commands[1446109160]; !ok {
+		t.Fatalf("No command found!")
+	} else {
+		if cmd.Command != "ls" {
+			t.Fatalf("Have command %s, want \"ls\"", cmd.Command)
+		}
+	}
 }
 
 func isEqual(a, b uint) bool {

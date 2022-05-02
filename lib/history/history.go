@@ -29,7 +29,7 @@ func init() {
 type GoshCommand struct {
 	Command     string `json:"command"`
 	Result      int    `json:"result"`
-	Invocations uint   `json:"invocations"`
+	Invocations uint   `json:"invocations"` // TODO: this has to move to the GoshHistory struct
 }
 
 func NewCommand(text string, result int) GoshCommand {
@@ -48,13 +48,25 @@ func NewHistory() *GoshHistory {
 func (g *GoshHistory) AddToHistory(c GoshCommand) (uint32, error) {
 	commandHash := hash(c.Command)
 
-	if cmd, ok := g.Commands[commandHash]; !ok {
-		g.Commands[commandHash] = c
+	cmd, ok := g.RetrieveCommand(commandHash)
+
+	if ok {
+		cmd.Invocations++
 	} else {
-		// Increment the amount of times we've run this command.
-		cmd.Invocations = cmd.Invocations + 1
+		g.Commands[commandHash] = c
 	}
+
 	return commandHash, nil
+}
+
+func (g *GoshHistory) RetrieveCommand(hash uint32) (*GoshCommand, bool) {
+	cmd, ok := g.Commands[hash]
+
+	if !ok {
+		return &GoshCommand{}, false
+	}
+
+	return &cmd, true
 }
 
 // Cleans all commands with a non-zero hsult.
@@ -93,8 +105,7 @@ func (g *GoshHistory) SaveToFile() error {
 // TODO: Need some sort of init script for the first package run to make the
 // TODO: config file location if it doesn't exist. Which it wouldn't.
 func FromConfigFile() (*GoshHistory, error) {
-	fmt.Printf("Looking for history file in %s\n", goshHistoryLocation)
-
+	// fmt.Printf("Looking for history file in %s\n", goshHistoryLocation)
 	h := NewHistory()
 	content, err := ioutil.ReadFile(goshHistoryLocation)
 
