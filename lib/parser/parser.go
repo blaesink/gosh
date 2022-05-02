@@ -19,11 +19,12 @@ func GoshParseLine(text string) []string {
 }
 
 // Args:
-// 	commands [][]string => the command(s) to exe    arr := make([]string, 0)cute.
+// 	text string => the command(s) to execute.
 // Returns:
-// 	history.GoshCommand => A struct containing the result code and original text.
+// 	history.GoshCommand => A struct containing the result code and original text,
+// 	error
 func GoshExecCommand(text string) (history.GoshCommand, error) {
-	var errCode int
+	errCode := 0
 
 	// Remove the newline character.
 	commandText := strings.TrimSuffix(text, "\n")

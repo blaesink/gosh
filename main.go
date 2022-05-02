@@ -6,9 +6,9 @@ import (
 	"gosh/lib/history"
 	"gosh/lib/parser"
 	"os"
+	"os/signal"
+	"syscall"
 )
-
-var _ = history.GoshCommand{}
 
 func main() {
 	goshHistory, loadErr := history.FromConfigFile()
@@ -16,15 +16,13 @@ func main() {
 	if loadErr != nil {
 		panic(loadErr)
 	}
+	AwaitCloseSignal(goshHistory)
 
 	fmt.Println("Welcome to gosh!")
-	// This should probably be some History struct
-	// commandHistory := history.NewHistory()
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
-
-		fmt.Printf("> ")
+		fmt.Printf("> ") // Could be some user defined one too.
 		text, err := reader.ReadString('\n')
 
 		if err != nil {
@@ -35,7 +33,18 @@ func main() {
 		if err != nil {
 			fmt.Printf("%s not found!\n", cmd.Command)
 		}
-
 		goshHistory.AddToHistory(cmd)
 	}
+}
+
+func AwaitCloseSignal(h *history.GoshHistory) {
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<-c
+		h.Clean()
+		h.SaveToFile()
+		os.Exit(0)
+	}()
 }
