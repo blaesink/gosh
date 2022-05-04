@@ -165,8 +165,8 @@ func TestGetters(t *testing.T) {
 		t.Fatalf("Have %s, want \"rm -rf /\"", cmd.command())
 	}
 
-	if cmd.result() != 0 {
-		t.Fatalf("Have %d, want 0", cmd.result())
+	if cmd.res() != 0 {
+		t.Fatalf("Have %d, want 0", cmd.res())
 	}
 }
 

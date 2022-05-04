@@ -20,11 +20,6 @@ func init() {
 	goshHistoryLocation = homeDir + "/.config/gosh/goshHistory.yaml"
 }
 
-type Command struct {
-	Command string `yaml:"command"`
-	Result  int    `yaml:"result"`
-}
-
 // A struct that holds information about any command run.
 //
 // Attributes:
@@ -32,21 +27,21 @@ type Command struct {
 // 	Result int => The result of the command (0 if success, other if failure).
 // 	Invocations uint => How many times the user has used this command.
 type GoshCommand struct {
-	Cmd         Command `yaml:"cmd"`
-	Invocations uint    `yaml:"invocations"`
+	Command     string `yaml:"command"`
+	Invocations uint   `yaml:"invocations"`
+	result      int
 }
 
 func (gc *GoshCommand) command() string {
-	return gc.Cmd.Command
+	return gc.Command
 }
 
-func (gc *GoshCommand) result() int {
-	return gc.Cmd.Result
+func (gc *GoshCommand) res() int {
+	return gc.result
 }
 
 func NewCommand(text string, result int) *GoshCommand {
-	cmd := Command{text, result}
-	return &GoshCommand{cmd, 1}
+	return &GoshCommand{text, 1, result}
 }
 
 type GoshHistory struct {
@@ -84,7 +79,7 @@ func (g *GoshHistory) retrieveCommand(hash uint32) *GoshCommand {
 // This keeps the user from entering bad commands.
 func (g *GoshHistory) Clean() {
 	for h, cmd := range g.Commands {
-		if cmd.result() != 0 {
+		if cmd.res() != 0 {
 			delete(g.Commands, h)
 		}
 	}

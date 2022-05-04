@@ -31,7 +31,7 @@ func main() {
 
 		cmd, err := parser.GoshExecCommand(text)
 		if err != nil {
-			fmt.Printf("%s not found!\n", cmd.Cmd.Command)
+			fmt.Printf("%s not found!\n", cmd.Command)
 		}
 		goshHistory.AddToHistory(cmd)
 	}
@@ -45,6 +45,7 @@ func AwaitCloseSignal(h *history.GoshHistory) {
 		<-c
 		h.Clean()
 		h.SaveToFile()
+		fmt.Println()
 		os.Exit(0)
 	}()
 }
