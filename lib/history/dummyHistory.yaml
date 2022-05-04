@@ -1,0 +1,11 @@
+commands:
+    185431626:
+      cmd:
+        command: ls -a
+        result: 0
+      invocations: 1
+    1446109160:
+      cmd:
+        command: ls
+        result: 0
+      invocations: 1
