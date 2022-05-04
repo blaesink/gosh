@@ -19,8 +19,9 @@ func mockHistory() *GoshHistory {
 	return h
 }
 
-func mockCommand() GoshCommand {
-	return NewCommand("rm -rf /", 0)
+func mockCommand() *GoshCommand {
+	cmd := NewCommand("rm -rf /", 0)
+	return cmd
 }
 
 func TestNewHistory(t *testing.T) {
@@ -33,28 +34,32 @@ func TestNewHistory(t *testing.T) {
 
 func TestRetrieveCommand(t *testing.T) {
 	h := mockHistory()
-	id, err := h.AddToHistory(mockCommand())
+	h.Commands[1234] = mockCommand()
 
-	if err != nil {
-		t.Fatalf("%v", err)
+	cmd := h.retrieveCommand(1234)
+
+	if cmd == nil {
+		t.Fatalf("Nil command retrieved.")
 	}
+}
 
-	cmd, ok := h.retrieveCommand(id)
+func TestRetrieveNilCommand(t *testing.T) {
+	h := mockHistory()
+	h.Commands[1234] = mockCommand()
 
-	if !ok {
-		t.Fatalf("Command %s does not exist", cmd.command())
-	}
+	// Get command that doesn't exist.
+	cmd := h.retrieveCommand(1237)
 
-	if cmd.command() != "rm -rf /" {
-		t.Fatalf("Incorrect command retrieved.")
+	if cmd != nil {
+		t.Fatalf("Command %v is not nil!", cmd)
 	}
 }
 
 func TestAddToHistory(t *testing.T) {
 
 	tests := []historyTest{
-		{[]GoshCommand{NewCommand("ls", 0), NewCommand("ps", 0)}, 2},
-		{[]GoshCommand{NewCommand("ls", 0), NewCommand("ps -ak", 1)}, 2}}
+		{[]*GoshCommand{NewCommand("ls", 0), NewCommand("ps", 0)}, 2},
+		{[]*GoshCommand{NewCommand("ls", 0), NewCommand("ps -ak", 1)}, 2}}
 
 	for _, tt := range tests {
 		h := mockHistory()
@@ -71,14 +76,14 @@ func TestAddToHistory(t *testing.T) {
 func TestAddDuplicateCommand(t *testing.T) {
 
 	tests := []historyTest{
-		{[]GoshCommand{
+		{[]*GoshCommand{
 			NewCommand("test1", 0)},
 			1},
-		{[]GoshCommand{
+		{[]*GoshCommand{
 			NewCommand("test2", 0),
 			NewCommand("test2", 0)},
 			2},
-		{[]GoshCommand{
+		{[]*GoshCommand{
 			NewCommand("test3", 0),
 			NewCommand("test3", 0),
 			NewCommand("test3", 0)},
@@ -94,7 +99,7 @@ func TestAddDuplicateCommand(t *testing.T) {
 
 		id := hash(tt.commands[0].command())
 
-		if cmd, _ := h.retrieveCommand(id); cmd.Invocations != tt.wanted {
+		if cmd := h.retrieveCommand(id); cmd.Invocations != tt.wanted {
 			t.Fatalf("Have %d invocations for %s, want %d", cmd.Invocations, cmd.command(), tt.wanted)
 		}
 	}
@@ -104,13 +109,13 @@ func TestAddDuplicateCommand(t *testing.T) {
 func TestCleanHistory(t *testing.T) {
 	// A struct for the TestCleanHistory test matrices.
 	type testHistoryStruct struct {
-		inp      map[uint32]GoshCommand
+		inp      map[uint32]*GoshCommand
 		expected uint
 	}
 
 	tests := []testHistoryStruct{
-		{mockMap([]GoshCommand{NewCommand("ls", 0)}), 1},
-		{mockMap([]GoshCommand{NewCommand("ls", 0), NewCommand("ks", -1)}), 1}}
+		{mockMap([]*GoshCommand{NewCommand("ls", 0)}), 1},
+		{mockMap([]*GoshCommand{NewCommand("ls", 0), NewCommand("ks", -1)}), 1}}
 
 	for _, tt := range tests {
 		h := mockHistory()
@@ -147,13 +152,9 @@ func TestFromConfigFile(t *testing.T) {
 
 	// Look for specific command.
 	// In this case, `ls`
-	cmd, ok := h.retrieveCommand(1446109160)
-	if !ok {
-		t.Fatalf("No command found!")
-	} else {
-		if cmd.command() != "ls" {
-			t.Fatalf("Have command %s, want \"ls\"", cmd.command())
-		}
+	cmd := h.retrieveCommand(1446109160)
+	if cmd.command() != "ls" {
+		t.Fatalf("Have command %s, want \"ls\"", cmd.command())
 	}
 }
 
@@ -177,8 +178,8 @@ func isNil(e error) bool {
 	return e == nil
 }
 
-func mockMap(cmds []GoshCommand) (m map[uint32]GoshCommand) {
-	m = make(map[uint32]GoshCommand)
+func mockMap(cmds []*GoshCommand) (m map[uint32]*GoshCommand) {
+	m = make(map[uint32]*GoshCommand)
 
 	for _, cmd := range cmds {
 		hash := hash(cmd.command())
@@ -188,6 +189,6 @@ func mockMap(cmds []GoshCommand) (m map[uint32]GoshCommand) {
 }
 
 type historyTest struct {
-	commands []GoshCommand
+	commands []*GoshCommand
 	wanted   uint
 }

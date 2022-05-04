@@ -16,7 +16,8 @@ func TestGoshExecCommand(t *testing.T) {
 		t.Fatalf("Unexpected error while running GoshExecCommand")
 	}
 
-	if res != expected {
+	// Dereference since the addresses aren't the same.
+	if *res != *expected {
 		t.Errorf("Have %v, want %v", res, expected)
 	}
 }

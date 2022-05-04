@@ -23,7 +23,7 @@ func GoshParseLine(text string) []string {
 // Returns:
 // 	history.GoshCommand => A struct containing the result code and original text,
 // 	error
-func GoshExecCommand(text string) (history.GoshCommand, error) {
+func GoshExecCommand(text string) (*history.GoshCommand, error) {
 	errCode := 0
 
 	// Remove the newline character.

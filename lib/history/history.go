@@ -44,34 +44,40 @@ func (gc *GoshCommand) result() int {
 	return gc.Cmd.Result
 }
 
-func NewCommand(text string, result int) GoshCommand {
+func NewCommand(text string, result int) *GoshCommand {
 	cmd := Command{text, result}
-	return GoshCommand{cmd, 1}
+	return &GoshCommand{cmd, 1}
 }
 
 type GoshHistory struct {
-	Commands map[uint32]GoshCommand `yaml:"commands"`
+	Commands map[uint32]*GoshCommand `yaml:"commands"`
 }
 
 func NewHistory() *GoshHistory {
-	commands := make(map[uint32]GoshCommand, 0)
+	commands := make(map[uint32]*GoshCommand, 0)
 	return &GoshHistory{commands}
 }
 
-func (g *GoshHistory) AddToHistory(c GoshCommand) (uint32, error) {
+func (g *GoshHistory) AddToHistory(c *GoshCommand) (uint32, error) {
 	commandHash := hash(c.command())
+
+	if cmd := g.retrieveCommand(commandHash); cmd != nil {
+		cmd.Invocations++
+	} else {
+		g.Commands[commandHash] = c
+	}
 
 	return commandHash, nil
 }
 
-func (g *GoshHistory) retrieveCommand(hash uint32) (*GoshCommand, bool) {
+func (g *GoshHistory) retrieveCommand(hash uint32) *GoshCommand {
 	cmd, ok := g.Commands[hash]
 
 	if !ok {
-		return &GoshCommand{}, false
+		return nil
 	}
 
-	return &cmd, true
+	return cmd
 }
 
 // Cleans all commands with a non-zero result.
