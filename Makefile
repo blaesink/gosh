@@ -3,7 +3,11 @@ all: prep exe
 
 prep:
 	rm -rf gosh
-	go test ./...
+	clear
+	@echo "Running tests..."
+	@echo
+	@echo
+	go test ./... -v
 
 exe:
 	go build .

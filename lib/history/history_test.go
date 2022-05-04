@@ -2,7 +2,6 @@ package history
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"testing"
 )
@@ -12,9 +11,7 @@ var currPath string
 
 func init() {
 	currPath, _ = os.Getwd()
-	goshHistoryLocation = currPath + "/dummyHistory.json"
-
-	fmt.Println(goshHistoryLocation)
+	goshHistoryLocation = currPath + "/dummyHistory.yaml"
 }
 
 func mockHistory() *GoshHistory {
@@ -29,7 +26,7 @@ func mockCommand() GoshCommand {
 func TestNewHistory(t *testing.T) {
 	h := mockHistory()
 
-	if !isEqual(h.Size(), 0) {
+	if !isEqual(h.size(), 0) {
 		t.Fatalf("Have command length of %d, want 0", len(h.Commands))
 	}
 }
@@ -42,21 +39,22 @@ func TestRetrieveCommand(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 
-	cmd, ok := h.RetrieveCommand(id)
+	cmd, ok := h.retrieveCommand(id)
 
 	if !ok {
-		t.Fatalf("Command %s does not exist", cmd.Command)
+		t.Fatalf("Command %s does not exist", cmd.command())
+	}
+
+	if cmd.command() != "rm -rf /" {
+		t.Fatalf("Incorrect command retrieved.")
 	}
 }
 
 func TestAddToHistory(t *testing.T) {
-	type historyTest struct {
-		commands   []GoshCommand
-		wantedSize uint
-	}
 
 	tests := []historyTest{
-		{[]GoshCommand{{"ls", 0, 1}, {"ps", 0, 1}}, 2}}
+		{[]GoshCommand{NewCommand("ls", 0), NewCommand("ps", 0)}, 2},
+		{[]GoshCommand{NewCommand("ls", 0), NewCommand("ps -ak", 1)}, 2}}
 
 	for _, tt := range tests {
 		h := mockHistory()
@@ -64,27 +62,43 @@ func TestAddToHistory(t *testing.T) {
 			h.AddToHistory(cmd)
 		}
 
-		if !isEqual(h.Size(), tt.wantedSize) {
-			t.Fatalf("Have size %d, want size %d", h.Size(), tt.wantedSize)
+		if !isEqual(h.size(), tt.wanted) {
+			t.Fatalf("Have size %d, want size %d", h.size(), tt.wanted)
 		}
 	}
 }
 
 func TestAddDuplicateCommand(t *testing.T) {
-	h := NewHistory()
-	h.AddToHistory(mockCommand())
-	id, err := h.AddToHistory(mockCommand())
 
-	expectedInvocations := 2
-
-	if err != nil {
-		t.Fatalf("%v", err)
+	tests := []historyTest{
+		{[]GoshCommand{
+			NewCommand("test1", 0)},
+			1},
+		{[]GoshCommand{
+			NewCommand("test2", 0),
+			NewCommand("test2", 0)},
+			2},
+		{[]GoshCommand{
+			NewCommand("test3", 0),
+			NewCommand("test3", 0),
+			NewCommand("test3", 0)},
+			3},
 	}
 
-	if inv := h.Commands[id].Invocations; inv != uint(expectedInvocations) {
-		t.Fatalf("Have %d invocation(s) for command %s, want %d invocations",
-			inv, mockCommand().Command, expectedInvocations)
+	for _, tt := range tests {
+		h := NewHistory()
+
+		for _, cmd := range tt.commands {
+			h.AddToHistory(cmd)
+		}
+
+		id := hash(tt.commands[0].command())
+
+		if cmd, _ := h.retrieveCommand(id); cmd.Invocations != tt.wanted {
+			t.Fatalf("Have %d invocations for %s, want %d", cmd.Invocations, cmd.command(), tt.wanted)
+		}
 	}
+
 }
 
 func TestCleanHistory(t *testing.T) {
@@ -95,35 +109,29 @@ func TestCleanHistory(t *testing.T) {
 	}
 
 	tests := []testHistoryStruct{
-		{mockMap([]GoshCommand{{"ls", 0, 1}}), 1},
-		{mockMap([]GoshCommand{{"ls", 0, 1}, {"ks", -1, 1}}), 1}}
+		{mockMap([]GoshCommand{NewCommand("ls", 0)}), 1},
+		{mockMap([]GoshCommand{NewCommand("ls", 0), NewCommand("ks", -1)}), 1}}
 
 	for _, tt := range tests {
 		h := mockHistory()
 		h.Commands = tt.inp
 		h.Clean()
 
-		if s := h.Size(); s != tt.expected {
+		if s := h.size(); s != tt.expected {
 			t.Fatalf("TestCleanHistory: have %d want %d", s, tt.expected)
 		}
 	}
 }
 
-func TestToJSON(t *testing.T) {
+func TestToYAML(t *testing.T) {
 	h := NewHistory()
 	h.AddToHistory(mockCommand())
 
-	// expected := []byte("{\"commands\":[{\"command\":\"rm -rf /\",\"result\":0}]}")
-	_, err := h.ToJSON()
+	_, err := h.toYAML()
 
 	if !isNil(err) {
-		t.Fatalf("Unable to convert json for %v", h)
+		t.Fatalf("Unable to convert yaml for %v", h)
 	}
-
-	// // Compare exact bytes.
-	// if bytes.Compare(js, expected) != 0 {
-	// 	t.Fatalf("Have %v, want %v", js, expected)
-	// }
 }
 
 func TestFromConfigFile(t *testing.T) {
@@ -138,12 +146,26 @@ func TestFromConfigFile(t *testing.T) {
 	}
 
 	// Look for specific command.
-	if cmd, ok := h.Commands[1446109160]; !ok {
+	// In this case, `ls`
+	cmd, ok := h.retrieveCommand(1446109160)
+	if !ok {
 		t.Fatalf("No command found!")
 	} else {
-		if cmd.Command != "ls" {
-			t.Fatalf("Have command %s, want \"ls\"", cmd.Command)
+		if cmd.command() != "ls" {
+			t.Fatalf("Have command %s, want \"ls\"", cmd.command())
 		}
+	}
+}
+
+func TestGetters(t *testing.T) {
+	cmd := mockCommand()
+
+	if cmd.command() != "rm -rf /" {
+		t.Fatalf("Have %s, want \"rm -rf /\"", cmd.command())
+	}
+
+	if cmd.result() != 0 {
+		t.Fatalf("Have %d, want 0", cmd.result())
 	}
 }
 
@@ -159,8 +181,13 @@ func mockMap(cmds []GoshCommand) (m map[uint32]GoshCommand) {
 	m = make(map[uint32]GoshCommand)
 
 	for _, cmd := range cmds {
-		hash := hash(cmd.Command)
+		hash := hash(cmd.command())
 		m[hash] = cmd
 	}
 	return
+}
+
+type historyTest struct {
+	commands []GoshCommand
+	wanted   uint
 }

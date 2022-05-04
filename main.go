@@ -31,7 +31,7 @@ func main() {
 
 		cmd, err := parser.GoshExecCommand(text)
 		if err != nil {
-			fmt.Printf("%s not found!\n", cmd.Command)
+			fmt.Printf("%s not found!\n", cmd.Cmd.Command)
 		}
 		goshHistory.AddToHistory(cmd)
 	}

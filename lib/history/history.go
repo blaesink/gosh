@@ -1,8 +1,8 @@
 package history
 
 import (
-	"encoding/json"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"hash/fnv"
 	"io/ioutil"
 	"os"
@@ -17,7 +17,12 @@ func init() {
 		panic("No user specified!")
 	}
 
-	goshHistoryLocation = homeDir + "/.config/gosh/goshHistory.json"
+	goshHistoryLocation = homeDir + "/.config/gosh/goshHistory.yaml"
+}
+
+type Command struct {
+	Command string `yaml:"command"`
+	Result  int    `yaml:"result"`
 }
 
 // A struct that holds information about any command run.
@@ -27,17 +32,25 @@ func init() {
 // 	Result int => The result of the command (0 if success, other if failure).
 // 	Invocations uint => How many times the user has used this command.
 type GoshCommand struct {
-	Command     string `json:"command"`
-	Result      int    `json:"result"`
-	Invocations uint   `json:"invocations"` // TODO: this has to move to the GoshHistory struct
+	Cmd         Command `yaml:"cmd"`
+	Invocations uint    `yaml:"invocations"`
+}
+
+func (gc *GoshCommand) command() string {
+	return gc.Cmd.Command
+}
+
+func (gc *GoshCommand) result() int {
+	return gc.Cmd.Result
 }
 
 func NewCommand(text string, result int) GoshCommand {
-	return GoshCommand{text, result, 1}
+	cmd := Command{text, result}
+	return GoshCommand{cmd, 1}
 }
 
 type GoshHistory struct {
-	Commands map[uint32]GoshCommand `json:"commands"`
+	Commands map[uint32]GoshCommand `yaml:"commands"`
 }
 
 func NewHistory() *GoshHistory {
@@ -46,20 +59,12 @@ func NewHistory() *GoshHistory {
 }
 
 func (g *GoshHistory) AddToHistory(c GoshCommand) (uint32, error) {
-	commandHash := hash(c.Command)
-
-	cmd, ok := g.RetrieveCommand(commandHash)
-
-	if ok {
-		cmd.Invocations++
-	} else {
-		g.Commands[commandHash] = c
-	}
+	commandHash := hash(c.command())
 
 	return commandHash, nil
 }
 
-func (g *GoshHistory) RetrieveCommand(hash uint32) (*GoshCommand, bool) {
+func (g *GoshHistory) retrieveCommand(hash uint32) (*GoshCommand, bool) {
 	cmd, ok := g.Commands[hash]
 
 	if !ok {
@@ -69,28 +74,28 @@ func (g *GoshHistory) RetrieveCommand(hash uint32) (*GoshCommand, bool) {
 	return &cmd, true
 }
 
-// Cleans all commands with a non-zero hsult.
+// Cleans all commands with a non-zero result.
 // This keeps the user from entering bad commands.
 func (g *GoshHistory) Clean() {
 	for h, cmd := range g.Commands {
-		if cmd.Result != 0 {
+		if cmd.result() != 0 {
 			delete(g.Commands, h)
 		}
 	}
 }
 
-func (g *GoshHistory) Size() uint {
+func (g *GoshHistory) size() uint {
 	return uint(len(g.Commands))
 }
 
 // Writes the GoshHistory struct to JSON ([]byte) for writing.
-func (g *GoshHistory) ToJSON() ([]byte, error) {
-	return json.Marshal(g)
+func (g *GoshHistory) toYAML() ([]byte, error) {
+	return yaml.Marshal(g)
 }
 
 // Writes the json to file.
-func (g *GoshHistory) SaveToFile() error {
-	content, err := g.ToJSON()
+func (g *GoshHistory) SaveToFile() {
+	content, err := g.toYAML()
 
 	// Probs shouldn't be a panic.
 	if err != nil {
@@ -98,7 +103,6 @@ func (g *GoshHistory) SaveToFile() error {
 	}
 
 	ioutil.WriteFile(goshHistoryLocation, content, 0777)
-	return nil
 }
 
 // Loads config file from location.
@@ -113,7 +117,7 @@ func FromConfigFile() (*GoshHistory, error) {
 		return h, fmt.Errorf("No config file found!")
 	}
 
-	err = json.Unmarshal(content, &h)
+	err = yaml.Unmarshal(content, &h)
 	return h, err
 }
 
