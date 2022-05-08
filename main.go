@@ -1,13 +1,11 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
+	"github.com/chzyer/readline"
 	"gosh/lib/history"
 	"gosh/lib/parser"
 	"os"
-	"os/signal"
-	"syscall"
 )
 
 func main() {
@@ -16,20 +14,32 @@ func main() {
 	if loadErr != nil {
 		panic(loadErr)
 	}
-	AwaitCloseSignal(goshHistory)
 
 	fmt.Println("Welcome to gosh!")
-	reader := bufio.NewReader(os.Stdin)
+	rl, err := readline.New("> ")
+
+	if err != nil {
+		panic("Couldn't instantiate readline!")
+	}
+
+	loadRecentsToHistory(goshHistory)
+
+	defer rl.Close()
+	defer cleanup(goshHistory)
 
 	for {
-		fmt.Printf("> ") // Could be some user defined one too.
-		text, err := reader.ReadString('\n')
+
+		line, err := rl.Readline()
 
 		if err != nil {
-			panic("Oh no")
+			break
 		}
 
-		cmd, err := parser.GoshExecCommand(text)
+		if len(line) == 0 {
+			continue
+		}
+
+		cmd, err := parser.GoshExecCommand(line)
 		if err != nil {
 			fmt.Printf("%s not found!\n", cmd.Command)
 		}
@@ -37,15 +47,20 @@ func main() {
 	}
 }
 
-func AwaitCloseSignal(h *history.GoshHistory) {
-	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+func cleanup(h *history.GoshHistory) {
+	h.Clean()
+	h.SaveToFile()
+	os.Exit(0)
+}
 
-	go func() {
-		<-c
-		h.Clean()
-		h.SaveToFile()
-		fmt.Println()
-		os.Exit(0)
-	}()
+func loadRecentsToHistory(h *history.GoshHistory) error {
+	for _, cmd := range h.Recents {
+		fmt.Printf("Adding %s to history\n", cmd)
+		err := readline.AddHistory(cmd)
+
+		if err != nil {
+			panic("Unable to add loaded history to readline!")
+		}
+	}
+	return nil
 }

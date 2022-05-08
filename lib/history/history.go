@@ -6,6 +6,7 @@ import (
 	"hash/fnv"
 	"io/ioutil"
 	"os"
+	"time"
 )
 
 var goshHistoryLocation string
@@ -26,10 +27,12 @@ func init() {
 // 	Command string => The command issued by the user.
 // 	Result int => The result of the command (0 if success, other if failure).
 // 	Invocations uint => How many times the user has used this command.
+// 	LastRunAt string => RFC3339 formatted timestamp of when the command was last issued.
 type GoshCommand struct {
 	Command     string `yaml:"command"`
 	Invocations uint   `yaml:"invocations"`
 	result      int
+	LastRunAt   string `yaml:"lastRunAt"`
 }
 
 func (gc *GoshCommand) command() string {
@@ -41,26 +44,38 @@ func (gc *GoshCommand) res() int {
 }
 
 func NewCommand(text string, result int) *GoshCommand {
-	return &GoshCommand{text, 1, result}
+	callTime := time.Now().Format(time.RFC3339)
+	return &GoshCommand{text, 1, result, callTime}
 }
 
+// The GoshHistory struct holds all the information needed to interface with
+// the user's history of interacting with the shell.
+//
+// Commands map[uint32]*GoshCommand => Map of all commands issued.
+// 		Any time a user runs a command, it is reflected and updated here.
+// RecentL []string => Text of run commands in an array.
+// 		In the goshHistory.yaml file, the most recent run command is at the bottom (LIFO).
 type GoshHistory struct {
 	Commands map[uint32]*GoshCommand `yaml:"commands"`
+	Recents  []string                `yaml:"recents"` // FIXME: test me.
 }
 
 func NewHistory() *GoshHistory {
 	commands := make(map[uint32]*GoshCommand, 0)
-	return &GoshHistory{commands}
+	return &GoshHistory{commands, []string{}}
 }
 
 func (g *GoshHistory) AddToHistory(c *GoshCommand) (uint32, error) {
 	commandHash := hash(c.command())
 
 	if cmd := g.retrieveCommand(commandHash); cmd != nil {
-		cmd.Invocations++
+		cmd.Invocations++           // Increment how many time's we've called.
+		cmd.LastRunAt = c.LastRunAt // Update the last time we called.
 	} else {
 		g.Commands[commandHash] = c
 	}
+
+	g.Recents = append(g.Recents, c.Command)
 
 	return commandHash, nil
 }
@@ -77,12 +92,22 @@ func (g *GoshHistory) retrieveCommand(hash uint32) *GoshCommand {
 
 // Cleans all commands with a non-zero result.
 // This keeps the user from entering bad commands.
+// Also cleans out duplicates from the RecentL list.
+// TODO: this should be done in parallel via goroutines.
 func (g *GoshHistory) Clean() {
-	for h, cmd := range g.Commands {
+	l := []string{}
+	for hash, cmd := range g.Commands {
 		if cmd.res() != 0 {
-			delete(g.Commands, h)
+			delete(g.Commands, hash)
 		}
 	}
+
+	for _, cmd := range g.Recents {
+		if _, ok := g.Commands[hash(cmd)]; ok {
+			l = append(l, cmd)
+		}
+	}
+	g.Recents = l
 }
 
 func (g *GoshHistory) size() uint {
@@ -95,7 +120,7 @@ func (g *GoshHistory) toYAML() ([]byte, error) {
 }
 
 // Writes the json to file.
-func (g *GoshHistory) SaveToFile() {
+func (g *GoshHistory) SaveToFile() error {
 	content, err := g.toYAML()
 
 	// Probs shouldn't be a panic.
@@ -103,7 +128,13 @@ func (g *GoshHistory) SaveToFile() {
 		panic(err)
 	}
 
-	ioutil.WriteFile(goshHistoryLocation, content, 0777)
+	err = ioutil.WriteFile(goshHistoryLocation, content, 0777)
+
+	if err != nil {
+		return fmt.Errorf("Unable to write history to %s", goshHistoryLocation)
+	}
+
+	return nil
 }
 
 // Loads config file from location.

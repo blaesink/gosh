@@ -28,6 +28,7 @@ func GoshExecCommand(text string) (*history.GoshCommand, error) {
 
 	// Remove the newline character.
 	commandText := strings.TrimSuffix(text, "\n")
+	commandText = strings.TrimSuffix(text, " ") // Strip trailing spaces.
 	args := strings.Split(commandText, " ")
 
 	// Prepare the command to execute.

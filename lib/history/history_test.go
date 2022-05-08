@@ -20,6 +20,7 @@ func mockHistory() *GoshHistory {
 }
 
 func mockCommand() *GoshCommand {
+	// cmd := GoshCommand{"rm -rf /", 1, 0, }
 	cmd := NewCommand("rm -rf /", 0)
 	return cmd
 }
@@ -69,6 +70,11 @@ func TestAddToHistory(t *testing.T) {
 
 		if !isEqual(h.size(), tt.wanted) {
 			t.Fatalf("Have size %d, want size %d", h.size(), tt.wanted)
+		}
+
+		recentLength := uint(len(h.Recents))
+		if !isEqual(recentLength, tt.wanted) {
+			t.Fatalf("Size of recent command array %d, want %d", recentLength, tt.wanted)
 		}
 	}
 }
@@ -168,6 +174,23 @@ func TestGetters(t *testing.T) {
 	if cmd.res() != 0 {
 		t.Fatalf("Have %d, want 0", cmd.res())
 	}
+}
+
+func TestSaveToFile(t *testing.T) {
+	h, err := FromConfigFile()
+
+	if err != nil {
+		t.Fatalf("Unable to load config file from %s", goshHistoryLocation)
+	}
+
+	// Set fake location for testing.
+	goshHistoryLocation = "/tmp/dummyHistory.yaml"
+
+	if goshHistoryLocation != "/tmp/dummyHistory.yaml" {
+		t.Errorf("Unable to set new location for history")
+	}
+
+	h.SaveToFile()
 }
 
 func isEqual(a, b uint) bool {
