@@ -57,9 +57,9 @@
 				
 				<option value="file0">gosh/lib/config/config.go (92.9%)</option>
 				
-				<option value="file1">gosh/lib/history/history.go (87.2%)</option>
+				<option value="file1">gosh/lib/history/history.go (91.5%)</option>
 				
-				<option value="file2">gosh/lib/parser/parser.go (78.6%)</option>
+				<option value="file2">gosh/lib/parser/parser.go (91.7%)</option>
 				
 				</select>
 			</div>
@@ -242,16 +242,16 @@ func (g *GoshHistory) Clean() <span class="cov8" title="1">{
                 }</span>
         }
 
-        <span class="cov8" title="1">for _, cmd := range g.Recents </span><span class="cov0" title="0">{
-                if _, ok := g.Commands[hash(cmd)]; ok </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">for _, cmd := range g.Recents </span><span class="cov8" title="1">{
+                if _, ok := g.Commands[hash(cmd)]; ok </span><span class="cov8" title="1">{
                         l = append(l, cmd)
                 }</span>
         }
         <span class="cov8" title="1">g.Recents = l</span>
 }
 
-func (g *GoshHistory) size() uint <span class="cov8" title="1">{
-        return uint(len(g.Commands))
+func (g *GoshHistory) size() int <span class="cov8" title="1">{
+        return len(g.Commands)
 }</span>
 
 // Writes the GoshHistory struct to JSON ([]byte) for writing.
@@ -313,12 +313,12 @@ import (
 //         text string =&gt; The user input text to parse.
 // Returns:
 //         history.GoshCommand =&gt; A formed GoshCommand that contains the original text and its result.
-func GoshParseLine(text string) []string <span class="cov0" title="0">{
-        // TODO: function composition ("piping") as `a _ _ . b` =&gt; b(a(_,_))
-        commands := strings.Split(text, " ")
+// func GoshParseLine(text string) []string {
+//         // TODO: function composition ("piping") as `a _ _ . b` =&gt; b(a(_,_))
+//         commands := strings.Split(text, " ")
 
-        return commands
-}</span>
+//         return commands
+// }
 
 // Args:
 //         text string =&gt; the command(s) to execute.

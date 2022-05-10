@@ -28,7 +28,7 @@ func mockCommand() *GoshCommand {
 func TestNewHistory(t *testing.T) {
 	h := mockHistory()
 
-	if !isEqual(h.size(), 0) {
+	if h.size() != 0 {
 		t.Fatalf("Have command length of %d, want 0", len(h.Commands))
 	}
 }
@@ -68,13 +68,8 @@ func TestAddToHistory(t *testing.T) {
 			h.AddToHistory(cmd)
 		}
 
-		if !isEqual(h.size(), tt.wanted) {
+		if h.size() != tt.wanted || len(h.Recents) != tt.wanted {
 			t.Fatalf("Have size %d, want size %d", h.size(), tt.wanted)
-		}
-
-		recentLength := uint(len(h.Recents))
-		if !isEqual(recentLength, tt.wanted) {
-			t.Fatalf("Size of recent command array %d, want %d", recentLength, tt.wanted)
 		}
 	}
 }
@@ -105,7 +100,7 @@ func TestAddDuplicateCommand(t *testing.T) {
 
 		id := hash(tt.commands[0].command())
 
-		if cmd := h.retrieveCommand(id); cmd.Invocations != tt.wanted {
+		if cmd := h.retrieveCommand(id); cmd.Invocations != uint(tt.wanted) {
 			t.Fatalf("Have %d invocations for %s, want %d", cmd.Invocations, cmd.command(), tt.wanted)
 		}
 	}
@@ -116,7 +111,7 @@ func TestCleanHistory(t *testing.T) {
 	// A struct for the TestCleanHistory test matrices.
 	type testHistoryStruct struct {
 		inp      map[uint32]*GoshCommand
-		expected uint
+		expected int
 	}
 
 	tests := []testHistoryStruct{
@@ -126,10 +121,15 @@ func TestCleanHistory(t *testing.T) {
 	for _, tt := range tests {
 		h := mockHistory()
 		h.Commands = tt.inp
+
+		for _, cmd := range h.Commands {
+			h.Recents = append(h.Recents, cmd.Command)
+		}
+
 		h.Clean()
 
-		if s := h.size(); s != tt.expected {
-			t.Fatalf("TestCleanHistory: have %d want %d", s, tt.expected)
+		if h.size() != tt.expected || len(h.Recents) != tt.expected {
+			t.Fatalf("TestCleanHistory: have %d commands with %d recents, want %d", h.size(), len(h.Recents), tt.expected)
 		}
 	}
 }
@@ -213,5 +213,5 @@ func mockMap(cmds []*GoshCommand) (m map[uint32]*GoshCommand) {
 
 type historyTest struct {
 	commands []*GoshCommand
-	wanted   uint
+	wanted   int
 }

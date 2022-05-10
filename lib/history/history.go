@@ -110,8 +110,8 @@ func (g *GoshHistory) Clean() {
 	g.Recents = l
 }
 
-func (g *GoshHistory) size() uint {
-	return uint(len(g.Commands))
+func (g *GoshHistory) size() int {
+	return len(g.Commands)
 }
 
 // Writes the GoshHistory struct to JSON ([]byte) for writing.

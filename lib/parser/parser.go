@@ -11,12 +11,12 @@ import (
 // 	text string => The user input text to parse.
 // Returns:
 // 	history.GoshCommand => A formed GoshCommand that contains the original text and its result.
-func GoshParseLine(text string) []string {
-	// TODO: function composition ("piping") as `a _ _ . b` => b(a(_,_))
-	commands := strings.Split(text, " ")
+// func GoshParseLine(text string) []string {
+// 	// TODO: function composition ("piping") as `a _ _ . b` => b(a(_,_))
+// 	commands := strings.Split(text, " ")
 
-	return commands
-}
+// 	return commands
+// }
 
 // Args:
 // 	text string => the command(s) to execute.
